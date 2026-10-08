@@ -115,7 +115,8 @@ public class SecurityConfig {
                                 "/",
                                 "/api/auth/**",
                                 "/api/health/**",
-                                "/actuator/**"
+                                "/actuator/**",
+                                "/favicon.ico"
                         ).permitAll()
 
                         // Public read-only endpoints

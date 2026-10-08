@@ -229,7 +229,7 @@ public class DataInitializer implements CommandLineRunner {
 
     /**
      * UPDATE 5: Provide simple database views doctor_details and patient_details
-     * so that normalized names are directly visible when inspecting MySQL.
+     * so that normalized names are directly visible when inspecting PostgreSQL.
      */
     private void createDatabaseViews() {
         try {
@@ -263,7 +263,7 @@ public class DataInitializer implements CommandLineRunner {
                 JOIN users u ON p.user_id = u.id
             """);
 
-            log.info("Database views 'doctor_details' and 'patient_details' successfully verified/created in MySQL.");
+            log.info("Database views 'doctor_details' and 'patient_details' successfully verified/created in PostgreSQL.");
         } catch (Exception e) {
             log.warn("Could not create database views: {}", e.getMessage());
         }

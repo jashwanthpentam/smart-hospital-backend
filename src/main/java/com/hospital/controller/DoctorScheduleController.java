@@ -60,14 +60,35 @@ public class DoctorScheduleController {
     @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR')")
     public ResponseEntity<ScheduleResponse> updateSchedule(
             @PathVariable Long id,
-            @Valid @RequestBody ScheduleRequest request) {
-        return ResponseEntity.ok(scheduleService.updateSchedule(id, request));
+            @Valid @RequestBody ScheduleRequest request,
+            Authentication authentication) {
+        Long authenticatedDoctorId = resolveAuthenticatedDoctorId(authentication);
+        return ResponseEntity.ok(scheduleService.updateSchedule(id, request, authenticatedDoctorId));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR')")
-    public ResponseEntity<Void> deleteSchedule(@PathVariable Long id) {
-        scheduleService.deleteSchedule(id);
+    public ResponseEntity<Void> deleteSchedule(
+            @PathVariable Long id,
+            Authentication authentication) {
+        Long authenticatedDoctorId = resolveAuthenticatedDoctorId(authentication);
+        scheduleService.deleteSchedule(id, authenticatedDoctorId);
         return ResponseEntity.noContent().build();
+    }
+
+    private Long resolveAuthenticatedDoctorId(Authentication authentication) {
+        if (authentication == null) {
+            return null;
+        }
+        boolean isDoctor = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_DOCTOR"));
+        if (!isDoctor) {
+            return null;
+        }
+        Doctor doctor = doctorRepository.findByUserEmail(authentication.getName()).orElse(null);
+        if (doctor == null) {
+            throw new com.hospital.exception.BadRequestException("Doctor could not be identified");
+        }
+        return doctor.getId();
     }
 }

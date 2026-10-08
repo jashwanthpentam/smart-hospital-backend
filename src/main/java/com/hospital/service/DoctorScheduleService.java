@@ -51,9 +51,21 @@ public class DoctorScheduleService {
         return mapToResponse(schedule);
     }
 
+    private void validateCapacityForShift(ScheduleRequest request) {
+        long availableSlots = java.time.Duration.between(request.getStartTime(), request.getEndTime()).toMinutes() / 15;
+        if (availableSlots <= 0) {
+            throw new BadRequestException("Schedule must be at least 15 minutes long");
+        }
+        if (request.getMaxAppointments() > availableSlots) {
+            throw new BadRequestException("Maximum appointments cannot exceed the available 15-minute slots (" + availableSlots + ")");
+        }
+    }
+
     @Transactional
     public ScheduleResponse createSchedule(ScheduleRequest request, Long authenticatedDoctorId) {
-        Long doctorId = request.getDoctorId() != null ? request.getDoctorId() : authenticatedDoctorId;
+        // A doctor may only create a schedule for their own profile. Admins pass null
+        // for authenticatedDoctorId and may explicitly select the target doctor.
+        Long doctorId = authenticatedDoctorId != null ? authenticatedDoctorId : request.getDoctorId();
         if (doctorId == null) {
             throw new BadRequestException("Doctor ID must be specified");
         }
@@ -65,6 +77,7 @@ public class DoctorScheduleService {
         if (request.getMaxAppointments() <= 0) {
             throw new BadRequestException("Maximum appointments capacity must be greater than 0");
         }
+        validateCapacityForShift(request);
 
         Doctor doctor = doctorRepository.findById(doctorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Doctor not found with id: " + doctorId));
@@ -85,9 +98,13 @@ public class DoctorScheduleService {
     }
 
     @Transactional
-    public ScheduleResponse updateSchedule(Long id, ScheduleRequest request) {
+    public ScheduleResponse updateSchedule(Long id, ScheduleRequest request, Long authenticatedDoctorId) {
         DoctorSchedule schedule = scheduleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Schedule not found with id: " + id));
+
+        if (authenticatedDoctorId != null && !schedule.getDoctor().getId().equals(authenticatedDoctorId)) {
+            throw new BadRequestException("You are not authorized to modify another doctor's schedule");
+        }
 
         if (!request.getStartTime().isBefore(request.getEndTime())) {
             throw new BadRequestException("Start time must be before end time");
@@ -96,6 +113,7 @@ public class DoctorScheduleService {
         if (request.getMaxAppointments() <= 0) {
             throw new BadRequestException("Maximum appointments capacity must be greater than 0");
         }
+        validateCapacityForShift(request);
 
         if (!schedule.getAvailableDate().equals(request.getAvailableDate()) &&
                 scheduleRepository.existsByDoctorIdAndAvailableDate(schedule.getDoctor().getId(), request.getAvailableDate())) {
@@ -112,11 +130,15 @@ public class DoctorScheduleService {
     }
 
     @Transactional
-    public void deleteSchedule(Long id) {
-        if (!scheduleRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Schedule not found with id: " + id);
+    public void deleteSchedule(Long id, Long authenticatedDoctorId) {
+        DoctorSchedule schedule = scheduleRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Schedule not found with id: " + id));
+
+        if (authenticatedDoctorId != null && !schedule.getDoctor().getId().equals(authenticatedDoctorId)) {
+            throw new BadRequestException("You are not authorized to delete another doctor's schedule");
         }
-        scheduleRepository.deleteById(id);
+
+        scheduleRepository.delete(schedule);
     }
 
     public ScheduleResponse mapToResponse(DoctorSchedule schedule) {

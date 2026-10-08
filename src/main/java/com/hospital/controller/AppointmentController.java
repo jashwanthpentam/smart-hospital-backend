@@ -85,12 +85,22 @@ public class AppointmentController {
             @Valid @RequestBody AppointmentRequest request,
             Authentication authentication) {
         Long authenticatedPatientId = null;
+        boolean isPatient = false;
         if (authentication != null) {
+            isPatient = authentication.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_PATIENT"));
             Patient patient = patientRepository.findByUserEmail(authentication.getName()).orElse(null);
             if (patient != null) {
                 authenticatedPatientId = patient.getId();
             }
         }
+
+        // Patient bookings always use the patient represented by the JWT.
+        // Admin/doctor bookings may explicitly supply patientId.
+        if (isPatient) {
+            request.setPatientId(authenticatedPatientId);
+        }
+
         AppointmentResponse created = appointmentService.bookAppointment(request, authenticatedPatientId);
         return new ResponseEntity<>(created, HttpStatus.CREATED);
     }

@@ -27,16 +27,28 @@ public class DoctorQueueController {
     }
 
     private Long resolveDoctorId(Authentication authentication, Long queryDoctorId) {
-        if (queryDoctorId != null) {
-            return queryDoctorId;
+        if (authentication == null) {
+            throw new BadRequestException("Doctor could not be identified");
         }
-        if (authentication != null) {
+
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        // Doctors are always restricted to their own doctor profile.
+        if (!isAdmin) {
             Doctor doctor = doctorRepository.findByUserEmail(authentication.getName()).orElse(null);
             if (doctor != null) {
                 return doctor.getId();
             }
+            throw new BadRequestException("Doctor could not be identified");
         }
-        throw new BadRequestException("Doctor could not be identified");
+
+        // Admins may inspect/manage a selected doctor's queue.
+        if (queryDoctorId != null) {
+            return queryDoctorId;
+        }
+
+        throw new BadRequestException("Doctor ID must be specified for admin queue operations");
     }
 
     @GetMapping("/queue")

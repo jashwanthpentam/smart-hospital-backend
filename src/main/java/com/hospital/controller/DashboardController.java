@@ -44,9 +44,13 @@ public class DashboardController {
     public ResponseEntity<DoctorDashboardResponse> getDoctorDashboard(
             Authentication authentication,
             @RequestParam(required = false) Long doctorId) {
+        boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
         Long resolvedDoctorId = doctorId;
-        if (resolvedDoctorId == null && authentication != null) {
-            Doctor doc = doctorRepository.findByUserEmail(authentication.getName()).orElse(null);
+        if (!isAdmin) {
+            Doctor doc = authentication == null ? null
+                    : doctorRepository.findByUserEmail(authentication.getName()).orElse(null);
             if (doc != null) {
                 resolvedDoctorId = doc.getId();
             }
