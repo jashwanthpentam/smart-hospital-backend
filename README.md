@@ -57,3 +57,4 @@ For local development, the default configuration in `application.properties` can
 
 ```powershell
 .\mvnw.cmd spring-boot:run
+<!-- deployment connectivity check -->
