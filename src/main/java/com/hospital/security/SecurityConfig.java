@@ -23,7 +23,6 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
-import java.util.Map;
 
 @Configuration
 @EnableWebSecurity
@@ -33,7 +32,9 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final CustomUserDetailsService userDetailsService;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthFilter, CustomUserDetailsService userDetailsService) {
+    public SecurityConfig(
+            JwtAuthenticationFilter jwtAuthFilter,
+            CustomUserDetailsService userDetailsService) {
         this.jwtAuthFilter = jwtAuthFilter;
         this.userDetailsService = userDetailsService;
     }
@@ -45,64 +46,150 @@ public class SecurityConfig {
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
+        DaoAuthenticationProvider authProvider =
+                new DaoAuthenticationProvider(userDetailsService);
+
         authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+    public AuthenticationManager authenticationManager(
+            AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+
+        configuration.setAllowedOrigins(List.of(
+                "http://localhost:5173",
+                "http://localhost:3000",
+                "http://127.0.0.1:5173",
+                "https://smart-hospital-frontend-oj9k.onrender.com"
+        ));
+
+        configuration.setAllowedMethods(List.of(
+                "GET",
+                "POST",
+                "PUT",
+                "DELETE",
+                "OPTIONS",
+                "PATCH"
+        ));
+
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+
         source.registerCorsConfiguration("/**", configuration);
+
         return source;
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http) throws Exception {
+
         http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .cors(cors ->
+                        cors.configurationSource(corsConfigurationSource())
+                )
+
                 .csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(
+                                SessionCreationPolicy.STATELESS
+                        )
+                )
+
                 .authorizeHttpRequests(auth -> auth
+
                         // Public endpoints
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/api/health/**",
                                 "/actuator/**"
                         ).permitAll()
-                        // Public read-only endpoints for browsing doctors and departments
-                        .requestMatchers(HttpMethod.GET, "/api/departments/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/doctors/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/schedules/**").permitAll()
+
+                        // Public read-only endpoints
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/departments/**"
+                        ).permitAll()
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/doctors/**"
+                        ).permitAll()
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/schedules/**"
+                        ).permitAll()
+
                         // All other APIs require authentication
                         .anyRequest().authenticated()
                 )
+
                 .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint((request, response, authException) -> {
-                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                            response.getWriter().write("{\"status\":401,\"message\":\"Unauthorized: " + 
-                                    (authException.getMessage() != null ? authException.getMessage().replace("\"", "'") : "Access denied") + "\"}");
-                        })
-                        .accessDeniedHandler((request, response, accessDeniedException) -> {
-                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                            response.getWriter().write("{\"status\":403,\"message\":\"Forbidden: " + 
-                                    (accessDeniedException.getMessage() != null ? accessDeniedException.getMessage().replace("\"", "'") : "Access denied") + "\"}");
-                        })
+
+                        .authenticationEntryPoint(
+                                (request, response, authException) -> {
+
+                                    response.setStatus(
+                                            HttpServletResponse.SC_UNAUTHORIZED
+                                    );
+
+                                    response.setContentType(
+                                            MediaType.APPLICATION_JSON_VALUE
+                                    );
+
+                                    response.getWriter().write(
+                                            "{\"status\":401,\"message\":\"Unauthorized: "
+                                                    + (authException.getMessage() != null
+                                                    ? authException.getMessage()
+                                                    .replace("\"", "'")
+                                                    : "Access denied")
+                                                    + "\"}"
+                                    );
+                                }
+                        )
+
+                        .accessDeniedHandler(
+                                (request, response, accessDeniedException) -> {
+
+                                    response.setStatus(
+                                            HttpServletResponse.SC_FORBIDDEN
+                                    );
+
+                                    response.setContentType(
+                                            MediaType.APPLICATION_JSON_VALUE
+                                    );
+
+                                    response.getWriter().write(
+                                            "{\"status\":403,\"message\":\"Forbidden: "
+                                                    + (accessDeniedException.getMessage() != null
+                                                    ? accessDeniedException.getMessage()
+                                                    .replace("\"", "'")
+                                                    : "Access denied")
+                                                    + "\"}"
+                                    );
+                                }
+                        )
                 )
+
                 .authenticationProvider(authenticationProvider())
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+
+                .addFilterBefore(
+                        jwtAuthFilter,
+                        UsernamePasswordAuthenticationFilter.class
+                );
 
         return http.build();
     }
